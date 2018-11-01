@@ -21,8 +21,9 @@ void ofApp::setup(){
 
 	vbo.setVertexBuffer(particlesBuffer,4,sizeof(Particle));
 	vbo.setColorBuffer(particlesBuffer,sizeof(Particle),sizeof(ofVec4f)*2);
-	vbo.disableColors();
-	dirAsColor = false;
+	
+	vbo.enableColors();
+	dirAsColor = true;
 
 	ofBackground(0);
 	ofEnableBlendMode(OF_BLENDMODE_ADD);
@@ -38,7 +39,7 @@ void ofApp::setup(){
 	shaderUniforms.add(attractor3Force.set("attr3_force",1200,0,5000));
 	gui.add(shaderUniforms);
 	gui.add(fps.set("fps",60,0,60));
-	gui.add(dirAsColor.set("dir as color",false));
+	gui.add(dirAsColor.set("dir as color",true));
 	dirAsColor.addListener(this,&ofApp::dirAsColorChanged);
 
 	particlesBuffer.bindBase(GL_SHADER_STORAGE_BUFFER, 0);
