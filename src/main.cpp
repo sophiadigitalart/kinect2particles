@@ -10,7 +10,8 @@ int main( ){
 	//ofGLWindowSettings settings;
 	ofGLFWWindowSettings settings;
 	settings.setGLVersion(4,3);
-	settings.windowMode = OF_FULLSCREEN;
+	//settings.windowMode = OF_FULLSCREEN;
+	settings.setSize(1280, 800);
 	//settings.resizable = false;
 	ofCreateWindow(settings);			// <-------- setup the GL context
 

@@ -487,7 +487,6 @@ void ofApp::draw(){
 	ofDrawBitmapStringHighlight(ss.str(), 20, previewHeight + 20);
 
 	// particles
-	//ofEnableBlendMode(OF_BLENDMODE_ADD);
 	camera.begin();
 	ofSetColor(ofColor::red);
 	ofDrawRectangle(atractor1, 10, 10);
