@@ -1,4 +1,5 @@
 ofxGui
 ofxKinectForWindows2
+ofxNDI
 ofxOsc
 ofxSpout2

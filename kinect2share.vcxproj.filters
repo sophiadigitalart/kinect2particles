@@ -7,6 +7,12 @@
 		<ClCompile Include="src\main.cpp">
 			<Filter>src</Filter>
 		</ClCompile>
+		<ClCompile Include="src\main.cpp">
+			<Filter>src</Filter>
+		</ClCompile>
+		<ClCompile Include="src\ofApp.cpp">
+			<Filter>src</Filter>
+		</ClCompile>
 		<ClCompile Include="..\..\..\addons\ofxGui\src\ofxBaseGui.cpp">
 			<Filter>addons\ofxGui\src</Filter>
 		</ClCompile>
@@ -69,6 +75,24 @@
 		</ClCompile>
 		<ClCompile Include="..\..\..\addons\ofxKinectForWindows2\src\ofxKinectForWindows2\Utils.cpp">
 			<Filter>addons\ofxKinectForWindows2\src\ofxKinectForWindows2</Filter>
+		</ClCompile>
+		<ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.cpp">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClCompile>
+		<ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.cpp">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClCompile>
+		<ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.cpp">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClCompile>
+		<ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.cpp">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClCompile>
+		<ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIshaders.cpp">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClCompile>
+		<ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp">
+			<Filter>addons\ofxNDI\src</Filter>
 		</ClCompile>
 		<ClCompile Include="..\..\..\addons\ofxOsc\src\ofxOscBundle.cpp">
 			<Filter>addons\ofxOsc\src</Filter>
@@ -168,6 +192,12 @@
 		<Filter Include="addons\ofxKinectForWindows2\src\ofxKinectForWindows2\Source">
 			<UniqueIdentifier>{D8ABF3AE-C83C-4B28-80F0-8B6D}</UniqueIdentifier>
 		</Filter>
+		<Filter Include="addons\ofxNDI">
+			<UniqueIdentifier>{577C5AAC-F44E-A0BE-E58F-B066}</UniqueIdentifier>
+		</Filter>
+		<Filter Include="addons\ofxNDI\src">
+			<UniqueIdentifier>{3BB183CD-62BF-E58A-FD5C-A603}</UniqueIdentifier>
+		</Filter>
 		<Filter Include="addons\ofxOsc">
 			<UniqueIdentifier>{D91DCA33-6E5D-4481-2AEC-9FBB}</UniqueIdentifier>
 		</Filter>
@@ -209,6 +239,9 @@
 		</Filter>
 	</ItemGroup>
 	<ItemGroup>
+		<ClInclude Include="src\ofApp.h">
+			<Filter>src</Filter>
+		</ClInclude>
 		<ClInclude Include="src\ofApp.h">
 			<Filter>src</Filter>
 		</ClInclude>
@@ -283,6 +316,27 @@
 		</ClInclude>
 		<ClInclude Include="..\..\..\addons\ofxKinectForWindows2\src\ofxKinectForWindows2.h">
 			<Filter>addons\ofxKinectForWindows2\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDI.h">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.h">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.h">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.h">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.h">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIshaders.h">
+			<Filter>addons\ofxNDI\src</Filter>
+		</ClInclude>
+		<ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h">
+			<Filter>addons\ofxNDI\src</Filter>
 		</ClInclude>
 		<ClInclude Include="..\..\..\addons\ofxOsc\src\ofxOsc.h">
 			<Filter>addons\ofxOsc\src</Filter>

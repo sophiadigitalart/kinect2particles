@@ -1,5 +1,24 @@
 #include "ofApp.h"
-#include "ofConstants.h"
+
+/*
+*  kinect2share
+*
+*  Created by Ryan Webber
+*  http://www.DusXproductions.com
+*  https://github.com/rwebber
+*
+*  The goal of this project is to make as many Kinect2 features available to creative platforms as possible,
+*  using open standards including OSC (opensoundcontrol), Spout, and NDI (https://www.newtek.com/ndi/).
+*
+*  Specific care has been given to providing a demo file for use with the Isadora creativity server.
+*  The demo file provides basic functional examples that Isadora users can build upon.
+*  http://troikatronix.com/
+*
+*  MIT License http://en.wikipedia.org/wiki/MIT_License
+*
+*  This project is built using OpenFrameWorks and utilizes a number of amazing addons offered by the community.
+*  Please read the ReadMe file included in the github reprository, for details.
+*/
 
 #define DEPTH_WIDTH 512
 #define DEPTH_HEIGHT 424
@@ -13,50 +32,16 @@ int previewHeight = DEPTH_HEIGHT / 2;
 
 string guiFile = "settings.xml";
 
+// REF: http://www.cplusplus.com/reference/cstring/
+
+// TODO: look into https://forum.openframeworks.cc/t/ofxkinectforwindows2-depth-threshold-for-blob-tracking/19012/2
+
+// TODO: refactor 'kv2status' into user defineable address
+
 //--------------------------------------------------------------
-void ofApp::setup(){
-	compute.setupShaderFromFile(GL_COMPUTE_SHADER,"compute1.glsl");
-	compute.linkProgram();
-	camera.setFarClip(ofGetWidth()*10);
-	particles.resize(1024*8);
-	int i=0;
-	for(auto & p: particles){
-		p.pos.x = ofRandom(-ofGetWidth()*0.5,ofGetWidth()*0.5);
-		p.pos.y = ofRandom(-ofGetHeight()*0.5,ofGetHeight()*0.5);
-		p.pos.z = ofRandom(-ofGetHeight()*0.5,ofGetHeight()*0.5);
-		p.pos.w = 1;
-		p.vel.set(0,0,0,0);
-		i++;
-	}
-	particlesBuffer.allocate(particles,GL_DYNAMIC_DRAW);
-	particlesBuffer2.allocate(particles,GL_DYNAMIC_DRAW);
-
-	vbo.setVertexBuffer(particlesBuffer,4,sizeof(Particle));
-	vbo.setColorBuffer(particlesBuffer,sizeof(Particle),sizeof(ofVec4f)*2);
-	
-	vbo.enableColors();
-	dirAsColor = true;
-
-	ofBackground(0);
-	ofEnableBlendMode(OF_BLENDMODE_ADD);
-
-	gui.setup();
-	shaderUniforms.setName("shader params");
-	shaderUniforms.add(attractionCoeff.set("attraction",0.18,0,1));
-	shaderUniforms.add(cohesionCoeff.set("cohesion",0.05,0,1));
-	shaderUniforms.add(repulsionCoeff.set("repulsion",0.7,0,1));
-	shaderUniforms.add(maxSpeed.set("max_speed",2500,0,5000));
-	shaderUniforms.add(attractor1Force.set("attr1_force",800,0,5000));
-	shaderUniforms.add(attractor2Force.set("attr2_force",800,0,5000));
-	shaderUniforms.add(attractor3Force.set("attr3_force",1200,0,5000));
-	gui.add(shaderUniforms);
-	gui.add(fps.set("fps",60,0,60));
-	gui.add(dirAsColor.set("dir as color",true));
-	dirAsColor.addListener(this,&ofApp::dirAsColorChanged);
-
-	particlesBuffer.bindBase(GL_SHADER_STORAGE_BUFFER, 0);
-	particlesBuffer2.bindBase(GL_SHADER_STORAGE_BUFFER, 1);
-
+void ofApp::setup() {
+	ofSetWindowTitle("kinect2osc");
+	ofSetFrameRate(20);
 	ofSetVerticalSync(true);
 
 	color_StreamName = "kv2_color";
@@ -101,27 +86,22 @@ void ofApp::setup(){
 	OSCgroup.setup("OSC");
 	OSCgroup.add(jsonGrouped.setup("OSC as JSON", true));
 	OSCgroup.add(HostField.setup("Host ip", "localhost"));
-	OSCgroup.add(oscPort.setup("Output port", 1234));
+	OSCgroup.add(oscPort.setup("Output port", 7000));
 	OSCgroup.add(oscPortIn.setup("Input port", 4321));
 	gui.add(&OSCgroup);
 
-	SPOUTgroup.setup("Spout");
-	SPOUTgroup.add(spoutCutOut.setup("BnW cutouts -> spout", true));
-	SPOUTgroup.add(spoutColor.setup("Color -> spout", true));
-	SPOUTgroup.add(spoutKeyed.setup("Keyed -> spout", true));
-	SPOUTgroup.add(spoutDepth.setup("Depth -> spout", true));
-	gui.add(&SPOUTgroup);
 
 	gui.loadFromFile(guiFile);
 
+	// OSC setup  * * * * * * * * * * * * *
+	//oscSender.disableBroadcast();
 	oscSender.setup(HostField, oscPort);
 	oscReceiver.setup(oscPortIn);
 
 }
 
 //--------------------------------------------------------------
-void ofApp::update(){
-	fps = ofGetFrameRate();
+void ofApp::update() {
 	// get OSC messages
 	while (oscReceiver.hasWaitingMessages()) {
 		ofxOscMessage m;
@@ -170,46 +150,6 @@ void ofApp::update(){
 	// https://msdn.microsoft.com/en-us/library/dn785530.aspx
 	coordinateMapper->MapDepthFrameToColorSpace(DEPTH_SIZE, (UINT16*)depthPix.getPixels(), DEPTH_SIZE, (ColorSpacePoint*)colorCoords.data());
 
-	// Loop through the depth image
-	if (spoutKeyed) {
-		for (int y = 0; y < DEPTH_HEIGHT; y++) {
-			for (int x = 0; x < DEPTH_WIDTH; x++) {
-				int index = (y * DEPTH_WIDTH) + x;
-
-				ofColor trans(0, 0, 0, 0);
-				foregroundImg.setColor(x, y, trans);
-
-				// This is the check to see if a given pixel is inside a tracked  body or part of the background.
-				// If it's part of a body, the value will be that body's id (0-5), or will > 5 if it's
-				// part of the background
-				// More info here: https://msdn.microsoft.com/en-us/library/windowspreview.kinect.bodyindexframe.aspx
-				float val = bodyIndexPix[index];
-				if (val >= bodies.size()) {
-					continue; // exit for loop without executing the following code
-				}
-
-				// For a given (x,y) in the depth image, lets look up where that point would be
-				// in the color image
-				ofVec2f mappedCoord = colorCoords[index];
-
-				// Mapped x/y coordinates in the color can come out as floats since it's not a 1:1 mapping
-				// between depth <-> color spaces i.e. a pixel at (100, 100) in the depth image could map
-				// to (405.84637, 238.13828) in color space
-				// So round the x/y values down to ints so that we can look up the nearest pixel
-				mappedCoord.x = floor(mappedCoord.x);
-				mappedCoord.y = floor(mappedCoord.y);
-
-				// Make sure it's within some sane bounds, and skip it otherwise
-				if (mappedCoord.x < 0 || mappedCoord.y < 0 || mappedCoord.x >= COLOR_WIDTH || mappedCoord.y >= COLOR_HEIGHT) {
-					continue;
-				}
-
-				// Finally, pull the color from the color image based on its coords in
-				// the depth image
-				foregroundImg.setColor(x, y, colorPix.getColor(mappedCoord.x, mappedCoord.y));
-			}
-		}
-	}
 
 	// Update the images since we manipulated the pixels manually. This uploads to the
 	// pixel data to the texture on the GPU so it can get drawn to screen
@@ -275,10 +215,7 @@ void ofApp::update(){
 	 //	auto bodies = kinect.getBodySource()->getBodies();
 
 
-	if (jsonGrouped) {
-		body2JSON(bodies, jointNames);
-	}
-	else {
+	
 		// TODO:: seperate function and add additional features like hand open/closed
 		// NON JSON osc messages
 		for (auto body : bodies) {
@@ -290,15 +227,17 @@ void ofApp::update(){
 				m.addFloatArg(pos.x);
 				m.addFloatArg(pos.y);
 				m.addFloatArg(pos.z);
+				m.addIntArg(joint.first);
+				m.addIntArg(body.bodyId);
 				m.addStringArg(jointNames[joint.first]);
 				oscSender.sendMessage(m);
-
+				//cout << adrs << endl;
+				ofLogError() << adrs;
+				ofLogNotice() << "osc send " << adrs;
 			} // end inner joints loop
 		} // end body loop
 
-	} // end if/else
-
-
+	
 
 	//--
 	//Getting bones (connected joints)
@@ -321,46 +260,13 @@ void ofApp::update(){
 		//}
 	}
 
-	// particles
-
-	compute.begin();
-	compute.setUniforms(shaderUniforms);
-	compute.setUniform1f("timeLastFrame",ofGetLastFrameTime());
-	compute.setUniform1f("elapsedTime",ofGetElapsedTimef());
-	float size = 4;
-	atractor1.set(ofMap(ofNoise(ofGetElapsedTimef()*0.3),0,1,-ofGetWidth()*size,ofGetWidth()*size),
-			ofMap(ofNoise(ofGetElapsedTimef()*0.3+0.2),0,1,-ofGetHeight()*size,ofGetHeight()*size),
-			ofMap(ofNoise(ofGetElapsedTimef()*0.3+0.5),0,1,0,-ofGetHeight()*size));
-	atractor2.set(ofMap(ofNoise(ofGetElapsedTimef()*0.5+0.3),0,1,-ofGetWidth()*size,ofGetWidth()*size),
-			ofMap(ofNoise(ofGetElapsedTimef()*0.5+0.2),0,1,-ofGetHeight()*size,ofGetHeight()*size),
-			ofMap(ofNoise(ofGetElapsedTimef()*0.5+0.1),0,1,0,-ofGetHeight()*size));
-	atractor3.set(ofMap(ofNoise(ofGetElapsedTimef()*0.9+0.1),0,1,-ofGetWidth()*size,ofGetWidth()*size),
-			ofMap(ofNoise(ofGetElapsedTimef()*0.9+0.5),0,1,-ofGetHeight()*size,ofGetHeight()*size),
-			ofMap(ofNoise(ofGetElapsedTimef()*0.9+0.7),0,1,0,-ofGetHeight()*size));
-
-	compute.setUniform3f("attractor1",atractor1.x,atractor1.y,atractor1.z);
-	compute.setUniform3f("attractor2",atractor2.x,atractor2.y,atractor2.z);
-	compute.setUniform3f("attractor3",atractor3.x,atractor3.y,atractor3.z);
-	
-	// since each work group has a local_size of 1024 (this is defined in the shader)
-	// we only have to issue 1 / 1024 workgroups to cover the full workload.
-	// note how we add 1024 and subtract one, this is a fast way to do the equivalent
-	// of std::ceil() in the float domain, i.e. to round up, so that we're also issueing
-	// a work group should the total size of particles be < 1024
-	compute.dispatchCompute((particles.size() + 1024 -1 )/1024, 1, 1);
-	
-	compute.end();
-
-	particlesBuffer.copyTo(particlesBuffer2);
+	//
+	//--
 }
 
+
 //--------------------------------------------------------------
-void ofApp::draw(){
-
-
-	ofEnableBlendMode(OF_BLENDMODE_ALPHA);
-	ofSetColor(255);
-
+void ofApp::draw() {
 	stringstream ss;
 
 	ofClear(0, 0, 0);
@@ -378,10 +284,6 @@ void ofApp::draw(){
 		ofClear(255, 255, 255, 0);
 		kinect.getDepthSource()->draw(0, 0, DEPTH_WIDTH, DEPTH_HEIGHT);  // note that the depth texture is RAW so may appear dark
 		fboDepth.end();
-		//Spout
-		if (spoutDepth) {
-			spout.sendTexture(fboDepth.getTextureReference(), depth_StreamName);
-		}
 		
 		//Draw from FBO
 		fboDepth.draw(0, 0, previewWidth, previewHeight);
@@ -394,10 +296,6 @@ void ofApp::draw(){
 		ofClear(255, 255, 255, 0);
 		kinect.getColorSource()->draw(0, 0, COLOR_WIDTH, COLOR_HEIGHT);
 		fboColor.end();
-		//Spout
-		if (spoutColor) {
-			spout.sendTexture(fboColor.getTextureReference(), color_StreamName);
-		}
 		
 		//Draw from FBO to UI
 		fboColor.draw(previewWidth, 0 + colorTop, previewWidth, colorHeight);
@@ -416,11 +314,7 @@ void ofApp::draw(){
 		ofClear(255, 255, 255, 0);
 		kinect.getBodyIndexSource()->draw(0, 0, DEPTH_WIDTH, DEPTH_HEIGHT);
 		fboDepth.end();
-		//Spout
-		if (spoutCutOut) {
-			spout.sendTexture(fboDepth.getTextureReference(), "kv2_cutout");
-		}
-		
+
 		//Draw from FBO
 		fboDepth.draw(previewWidth, previewHeight, previewWidth, previewHeight);
 		//fboDepth.clear();
@@ -432,22 +326,12 @@ void ofApp::draw(){
 		ofClear(255, 255, 255, 0);
 		foregroundImg.draw(0, 0, DEPTH_WIDTH, DEPTH_HEIGHT);
 		fboDepth.end();
-		//Spout
-		if (spoutKeyed) {
-			//ofSetFrameRate(30);
-			spout.sendTexture(fboDepth.getTextureReference(), "kv2_keyed");
-			//Draw from FBO, removed if not checked
-			ofEnableBlendMode(OF_BLENDMODE_ALPHA);
-			fboDepth.draw(previewWidth * 2, 0, previewWidth, previewHeight);
-		}
-		else {
-			//ofSetFrameRate(60);
+		
 			ss.str("");
 			ss << "Keyed image only shown when" << endl;
 			ss << "checked in Parameters window" << endl;
 			ss << "and, a body is being tracked.";
 			ofDrawBitmapStringHighlight(ss.str(), previewWidth * 2 + 20, previewHeight - (previewHeight / 2 + 60));
-		}
 		
 	}
 
@@ -486,35 +370,9 @@ void ofApp::draw(){
 	ss << "Infrared : ";
 	ofDrawBitmapStringHighlight(ss.str(), 20, previewHeight + 20);
 
-	// particles
-	camera.begin();
-	ofSetColor(ofColor::red);
-	ofDrawRectangle(atractor1, 10, 10);
-	ofDrawRectangle(atractor2, 10, 10);
-	ofDrawRectangle(atractor3, 10, 10);
-
-	ofSetColor(255, 70);
-	glPointSize(5);
-	vbo.draw(GL_POINTS, 0, particles.size());
-	ofSetColor(255);
-	glPointSize(2);
-	vbo.draw(GL_POINTS, 0, particles.size());
-
-	ofNoFill();
-	ofDrawBox(0, 0, -ofGetHeight() * 2, ofGetWidth() * 4, ofGetHeight() * 4, ofGetHeight() * 4);
-
-	camera.end();
-	// gui
 	gui.draw();
 }
 
-void ofApp::dirAsColorChanged(bool & dirAsColor){
-	if(dirAsColor){
-		vbo.enableColors();
-	}else{
-		vbo.disableColors();
-	}
-}
 void ofApp::exit() {
 	gui.saveToFile(guiFile);
 	oscSendMsg("closed", "/kv2status/");
@@ -561,122 +419,55 @@ void ofApp::HostFieldChanged() {
 }
 
 //--------------------------------------------------------------
-void ofApp::body2JSON(vector<ofxKinectForWindows2::Data::Body> bodies, const char * jointNames[]) {
-	// TODO: create factory
-	for (auto body : bodies) {
-		string bdata = ""; // start JSON array build of body data
-		string newData = ""; // start JSON array build of joints data
-		for (auto joint : body.joints) {
-			auto pos = joint.second.getPositionInWorld();
-			string name = jointNames[joint.first];
-			newData = "\"j\":";  // j for joint ;)
-			newData = newData + "\"" + name + "\",";
-			newData = newData + "\"x\":" + to_string(pos.x) + ",";
-			newData = newData + "\"y\":" + to_string(pos.y) + ",";
-			newData = newData + "\"z\":" + to_string(pos.z);
-			newData = "{" + newData + "}";
-			// format= {"\j\":\"jointName\",\"x\":0.1,\"y\":0.2,\"z\":0.3 }
-			if (bdata == "") {  // if bdata = "" no comma
-				bdata = newData;
-			}
-			else {
-				bdata = bdata + "," + newData;
-			}
-		} // end inner joints loop
+void ofApp::keyPressed(int key) {
 
-		  // format= {"\joint\":\"jointName\",\"x\":0.1,\"y\":0.2,\"z\":0.3 }
-		  // {"j":"SpineBase","x":-0.102359,"y":-0.669035,"z":1.112273}
-
-		  // TODO: add below features to non Json OSC
-		  // body.activity ?? contains more.. worth looking into 
-		newData = "\"LH-st8\":" + to_string(body.leftHandState);
-		newData = "{" + newData + "}";
-		// if tracked add ',' and bdata, otherwise bdata = newData. Fixes trailing ',' for non tracked bodies
-		if (!body.tracked) {
-			bdata = newData;
-		}
-		else {
-			bdata = newData + "," + bdata;
-		}
-
-		newData = "\"RH-st8\":" + to_string(body.rightHandState);
-		newData = "{" + newData + "}";
-		bdata = newData + "," + bdata;
-
-		newData = "\"ID\":" + to_string(body.trackingId);
-		newData = "{" + newData + "}";
-		bdata = newData + "," + bdata;
-
-		newData = "\"tracked\":" + to_string(body.tracked);
-		newData = "{" + newData + "}";
-		bdata = newData + "," + bdata;
-
-		// need to escape all " in bdata
-		bdata = escape_quotes(bdata);
-		bdata = "[" + bdata + "]";
-		bdata = "{\"b" + to_string(body.bodyId) + "\": \"" + bdata + "\"}";
-		//cout << bdata << endl;
-		ofxOscMessage m;
-		string adrs = "/kV2/body/" + to_string(body.bodyId);
-		m.setAddress(adrs);
-		m.addStringArg(bdata);
-		oscSender.sendMessage(m);
-	} // end body loop
 }
 
 //--------------------------------------------------------------
-void ofApp::keyPressed(int key){
-}
-
-//--------------------------------------------------------------
-void ofApp::keyReleased(int key){
-	if (key == 'f'){
-		ofToggleFullscreen();
+void ofApp::keyReleased(int key) {
+	// https://forum.openframeworks.cc/t/keypressed-and-getting-the-special-keys/5727
+	if (key == OF_KEY_RETURN) {
+		cout << "ENTER" << endl;
+		HostFieldChanged();
 	}
+}
+
+//--------------------------------------------------------------
+void ofApp::gotMessage(ofMessage msg) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseMoved(int x, int y ){
+void ofApp::mouseMoved(int x, int y) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseDragged(int x, int y, int button){
+void ofApp::mouseDragged(int x, int y, int button) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mousePressed(int x, int y, int button){
+void ofApp::mousePressed(int x, int y, int button) {
+	ofxOscMessage m;
+	string adrs = "/mousemove/1";
+	m.setAddress(adrs);
+	m.addIntArg(x);
+	m.addIntArg(y);
+	oscSender.sendMessage(m);
+}
+
+//--------------------------------------------------------------
+void ofApp::mouseReleased(int x, int y, int button) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseReleased(int x, int y, int button){
-
+void ofApp::windowResized(int w, int h) {
+	// textField = ofToString(w) + "x" + ofToString(h);
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseEntered(int x, int y){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::mouseExited(int x, int y){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::windowResized(int w, int h){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::gotMessage(ofMessage msg){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){ 
+void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 }
